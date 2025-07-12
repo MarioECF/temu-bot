@@ -1,47 +1,42 @@
 import logging
+import random
+import requests
+import csv
+import os
 from telegram import Bot
 from telegram.error import TelegramError
 from datetime import datetime
-import random
 
-# Tu token de Bot
-TOKEN = "7939965087:AAE01Zi0ISJzQNICMRzkwW6e7Vke1GoI-OE"
-
-# Tu canal (con @ si es público)
+# Usamos el secret existente llamado BOT_TOKEN
+TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL = "@gadgetsvirales"
 
-# Lista de productos
-productos = [
-    {
-        "titulo": "🎧 Auriculares Inalámbricos con Mic y Pantalla LED",
-        "precio": "Solo 12,44 € 🔥",
-        "descripcion": (
-            "✅ Cancelación de ruido ENC\n"
-            "✅ Control táctil y caja con indicador LED\n"
-            "✅ Batería 300mAh + carga Tipo-C\n"
-            "🎮 Ideal para gaming, deporte o llamadas\n"
-            "💯 Más de 100.000 ventas | Valoración 4,7 ⭐"
-        ),
-        "link": "https://temu.to/k/ezyhznh9xgu"
-    },
-    {
-        "titulo": "📦 Organizador ajustable para cables",
-        "precio": "2,49 €",
-        "descripcion": "Despídete del caos en tu escritorio. Simple, útil y barato.",
-        "link": "https://temu.com/tu-link-afiliado"
-    },
-    {
-        "titulo": "🔥 Mini ventilador USB portátil",
-        "precio": "5,99 €",
-        "descripcion": "Silencioso, ideal para verano y teletrabajo. Llévalo donde quieras.",
-        "link": "https://temu.com/tu-link-afiliado"
-    }
-]
+# Google Sheets pública en CSV
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQrJXtElnBBUZyp6bpBBQzrFkbzY7U8Q1ASDdJeZRpVOKhD6YOgUehFNrb4Fgp1aS-arQYtlJ-qifJa/pub?output=csv"
 
-# Genera el mensaje aleatorio
-def generar_mensaje():
+def obtener_productos_desde_hoja():
+    try:
+        response = requests.get(SHEET_CSV_URL)
+        response.raise_for_status()
+        decoded = response.content.decode("utf-8")
+        reader = csv.reader(decoded.splitlines())
+        next(reader)  # Saltar encabezado
+        productos = []
+        for row in reader:
+            if len(row) >= 4:
+                productos.append({
+                    "titulo": row[0],
+                    "precio": row[1],
+                    "descripcion": row[2],
+                    "link": row[3]
+                })
+        return productos
+    except Exception as e:
+        print(f"❌ Error al obtener datos de Google Sheets: {e}")
+        return []
+
+def generar_mensaje(productos):
     producto = random.choice(productos)
-    print("🟡 Producto elegido:", producto['titulo'])  # Muestra en consola el producto seleccionado
     mensaje = (
         f"{producto['titulo']}\n"
         f"💶 Precio: {producto['precio']}\n"
@@ -50,10 +45,14 @@ def generar_mensaje():
     )
     return mensaje
 
-# Envia el mensaje al canal
 def enviar_mensaje():
+    productos = obtener_productos_desde_hoja()
+    if not productos:
+        print("❌ No se encontraron productos.")
+        return
+
+    mensaje = generar_mensaje(productos)
     bot = Bot(token=TOKEN)
-    mensaje = generar_mensaje()
     try:
         bot.send_message(chat_id=CHANNEL, text=mensaje, parse_mode="Markdown")
         print(f"✅ Mensaje enviado: {datetime.now()}")
