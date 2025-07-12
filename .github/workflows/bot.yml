@@ -19,7 +19,9 @@ jobs:
         python-version: '3.11'
 
     - name: Instalar dependencias
-      run: pip install python-telegram-bot==13.15
+      run: |
+        pip install --upgrade pip
+        pip install requests python-telegram-bot==13.15
 
     - name: Ejecutar bot
       env:
